@@ -58,14 +58,14 @@ def generate_captcha():
 
     img = img.filter(ImageFilter.GaussianBlur(1))
     buffer = io.BytesIO()
-    img.save(buffer, format='PNG')
+    img.save(buffer, format="PNG")
     buffer.seek(0)
     return text, buffer
 
 # --- Bot ready ---
 @bot.event
 async def on_ready():
-    print(f'{bot.user} s-a conectat!')
+    print(f"{bot.user} s-a conectat!")
 
 # --- Comandă verify ---
 @bot.command()
