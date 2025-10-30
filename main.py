@@ -1,51 +1,55 @@
-import os
 import discord
 from discord.ext import commands
-from discord import app_commands
+import os
 from dotenv import load_dotenv
+import random
+import asyncio
 
 load_dotenv()
-TOKEN = os.getenv("TOKEN")
-
-# 🔧 CONFIGURĂRI — schimbă cu valorile tale
-VERIFY_CHANNEL_ID = 123456789012345678  # ID canal unde se trimite mesajul de verificare
-VERIFIED_ROLE_ID = 987654321098765432  # ID rol oferit după verificare
+TOKEN = os.getenv('DISCORD_TOKEN')
+GUILD_ID = int(os.getenv('GUILD_ID'))
+VERIFY_CHANNEL_ID = int(os.getenv('VERIFY_CHANNEL_ID'))
 
 intents = discord.Intents.default()
-intents.members = True
-intents.guilds = True
-
+intents.members = True  # Necesare pentru verificare
 bot = commands.Bot(command_prefix="!", intents=intents)
+
+# Rol de verificare
+VERIFY_ROLE_NAME = "Verified"
 
 @bot.event
 async def on_ready():
-    print(f"✅ Syntex este online ca {bot.user}")
-    channel = bot.get_channel(VERIFY_CHANNEL_ID)
-    if channel:
-        embed = discord.Embed(
-            title="🔒 Syntex Verification",
-            description="Apasă butonul de mai jos pentru a te verifica și a accesa serverul.",
-            color=0x5865F2,
-        )
-        embed.set_footer(text="Syntex Security Bot")
+    print(f'{bot.user} s-a conectat!')
 
-        view = discord.ui.View()
-        view.add_item(VerifyButton())
+# Comandă de start verificare
+@bot.command()
+async def verify(ctx):
+    if ctx.channel.id != VERIFY_CHANNEL_ID:
+        return await ctx.send("Comanda se poate folosi doar în canalul de verificare!")
 
-        await channel.send(embed=embed, view=view)
+    member = ctx.author
+    guild = ctx.guild
 
-class VerifyButton(discord.ui.Button):
-    def __init__(self):
-        super().__init__(label="Verify", style=discord.ButtonStyle.primary)
+    # Generăm o "provocare" simplă
+    num1 = random.randint(1, 20)
+    num2 = random.randint(1, 20)
+    await ctx.send(f"{member.mention}, rezolvă: `{num1} + {num2}`")
 
-    async def callback(self, interaction: discord.Interaction):
-        role = interaction.guild.get_role(VERIFIED_ROLE_ID)
-        if role is None:
-            await interaction.response.send_message("⚠️ Rolul de verificare nu a fost găsit.", ephemeral=True)
-            return
+    def check(m):
+        return m.author == member and m.channel == ctx.channel
 
-        await interaction.user.add_roles(role)
-        await interaction.response.send_message("✅ Ai fost verificat cu succes!", ephemeral=True)
+    try:
+        msg = await bot.wait_for('message', check=check, timeout=30)
+        if int(msg.content) == num1 + num2:
+            role = discord.utils.get(guild.roles, name=VERIFY_ROLE_NAME)
+            if role:
+                await member.add_roles(role)
+                await ctx.send(f"{member.mention} a fost verificat cu succes!")
+            else:
+                await ctx.send("Rolul de verificare nu există!")
+        else:
+            await ctx.send(f"{member.mention}, răspuns greșit!")
+    except asyncio.TimeoutError:
+        await ctx.send(f"{member.mention}, timpul a expirat!")
 
-# Rulează botul
 bot.run(TOKEN)
