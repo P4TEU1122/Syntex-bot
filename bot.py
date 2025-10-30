@@ -7,24 +7,45 @@ import asyncio
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
 import io
 
-# Load environment variables
+# --- Load environment variables ---
 load_dotenv()
 TOKEN = os.getenv('DISCORD_TOKEN')
-GUILD_ID = int(os.getenv('GUILD_ID'))
-VERIFY_CHANNEL_ID = int(os.getenv('VERIFY_CHANNEL_ID'))
-LOG_CHANNEL_ID = int(os.getenv('LOG_CHANNEL_ID'))
-ROLE_UNVERIFIED_ID = int(os.getenv('ROLE_UNVERIFIED_ID'))
-ROLE_VERIFIED_ID = int(os.getenv('ROLE_VERIFIED_ID'))
+GUILD_ID = os.getenv('GUILD_ID')
+VERIFY_CHANNEL_ID = os.getenv('VERIFY_CHANNEL_ID')
+LOG_CHANNEL_ID = os.getenv('LOG_CHANNEL_ID')
+ROLE_UNVERIFIED_ID = os.getenv('ROLE_UNVERIFIED_ID')
+ROLE_VERIFIED_ID = os.getenv('ROLE_VERIFIED_ID')
 
+# Debug: verifică dacă variabilele sunt citite corect
+print("TOKEN:", TOKEN)
+print("GUILD_ID:", GUILD_ID)
+print("VERIFY_CHANNEL_ID:", VERIFY_CHANNEL_ID)
+print("LOG_CHANNEL_ID:", LOG_CHANNEL_ID)
+print("ROLE_UNVERIFIED_ID:", ROLE_UNVERIFIED_ID)
+print("ROLE_VERIFIED_ID:", ROLE_VERIFIED_ID)
+
+# Verifică dacă nu lipsesc variabilele
+required_env = [TOKEN, GUILD_ID, VERIFY_CHANNEL_ID, LOG_CHANNEL_ID, ROLE_UNVERIFIED_ID, ROLE_VERIFIED_ID]
+if any(v is None for v in required_env):
+    raise ValueError("Una sau mai multe variabile de mediu nu sunt setate corect!")
+
+# Convertim ID-urile în int
+GUILD_ID = int(GUILD_ID)
+VERIFY_CHANNEL_ID = int(VERIFY_CHANNEL_ID)
+LOG_CHANNEL_ID = int(LOG_CHANNEL_ID)
+ROLE_UNVERIFIED_ID = int(ROLE_UNVERIFIED_ID)
+ROLE_VERIFIED_ID = int(ROLE_VERIFIED_ID)
+
+# --- Bot setup ---
 intents = discord.Intents.default()
 intents.members = True
 intents.message_content = True  # Necesită privilegii în portalul Discord
 bot = commands.Bot(command_prefix="!", intents=intents)
 
+# --- Captcha settings ---
 MAX_ATTEMPTS = 3
 TIMEOUT = 30
 CAPTCHA_LENGTH = 6
-
 FONTS = [
     "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
     "/usr/share/fonts/truetype/dejavu/DejaVuSerif-Bold.ttf"
@@ -37,6 +58,7 @@ def generate_captcha():
     img = Image.new('RGB', (width, height), color=(255, 255, 255))
     draw = ImageDraw.Draw(img)
 
+    # Desenăm caractere
     for i, char in enumerate(text):
         font = ImageFont.truetype(random.choice(FONTS), random.randint(30, 40))
         x = 10 + i * 30 + random.randint(-5, 5)
@@ -44,13 +66,13 @@ def generate_captcha():
         color = tuple(random.randint(0, 150) for _ in range(3))
         draw.text((x, y), char, font=font, fill=color)
 
-    # Noise - linii
+    # Linii random
     for _ in range(8):
         start = (random.randint(0, width), random.randint(0, height))
         end = (random.randint(0, width), random.randint(0, height))
         draw.line([start, end], fill=tuple(random.randint(0, 150) for _ in range(3)), width=2)
 
-    # Noise - puncte
+    # Puncte random
     for _ in range(30):
         x = random.randint(0, width)
         y = random.randint(0, height)
@@ -62,7 +84,7 @@ def generate_captcha():
     buffer.seek(0)
     return text, buffer
 
-# --- Bot ready ---
+# --- Eveniment on_ready ---
 @bot.event
 async def on_ready():
     print(f"{bot.user} s-a conectat!")
@@ -106,7 +128,7 @@ async def verify(ctx):
             msg = await bot.wait_for('message', check=check, timeout=TIMEOUT)
             if msg.content.upper() == captcha_text:
                 await member.add_roles(role_verified)
-                
+
                 embed_succes = discord.Embed(
                     title="✅ Verificare reușită!",
                     description=f"{member.mention} a fost verificat cu succes!",
